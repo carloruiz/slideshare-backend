@@ -3,4 +3,4 @@ __pycache__/
 *.swp
 *.swo
 venv/
-secret.py
+secret.sh
