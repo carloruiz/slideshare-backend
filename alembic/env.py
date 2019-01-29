@@ -28,14 +28,6 @@ target_metadata = None
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-def get_url():
-    return 'postgresql://{}:{}@{}:5432/{}'.format(
-        os.environ['DB_USER'], 
-        os.environ['DB_PASSWORD'], 
-        os.environ['DB_HOST'], 
-        os.environ['DB_NAME'])
-
-
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -48,7 +40,7 @@ def run_migrations_offline():
     script output.
 
     """
-    url = get_url()
+    url = os.environ['DB_URI']
     context.configure(
         url=url, target_metadata=target_metadata, literal_binds=True
     )
