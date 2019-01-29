@@ -1,11 +1,11 @@
+from datetime import datetime, timezone
+import os
 from sqlalchemy import (
     Table, MetaData, Column, 
     Integer, String, ForeignKey, 
     DateTime, UniqueConstraint,
     PrimaryKeyConstraint, create_engine
 )
-from datetime import datetime, timezone
-from config import DB
 
 metadata = MetaData()
 
@@ -20,6 +20,8 @@ user = Table('user', metadata,
 user_meta = Table('user_meta', metadata,
     Column('id', Integer, primary_key=True),
     Column('userid', Integer, ForeignKey('user.id', ondelete="SET NULL"), unique=True), 
+    Column('firstname', String(30)),
+    Column('lastname', String(30)),
     Column('joined_on', DateTime, default=datetime.now(timezone.utc)),
     Column('last_login', DateTime, default=datetime.now(timezone.utc)),
     Column('user_type', String(15)),
@@ -43,6 +45,7 @@ institution = Table('institution', metadata,
     Column('id', Integer, primary_key=True),
     Column('name', String),
     Column('state', String(30)),
+    UniqueConstraint('name', 'state', name='name_state_unique'),
     extend_existing=True,
 )
 
@@ -68,9 +71,6 @@ slide_tag = Table('slide_tag', metadata,
 )
 
 if __name__ == "__main__":
-    engine_str = 'postgresql://{}:{}@{}:5432/{}'.format(
-        DB['USER'], DB['PASSWORD'], DB['HOST'], DB['NAME'])
-            
-    engine = create_engine(engine_str)
+    engine = create_engine(os.environ['DB_URI_LOCAL'])
     metadata.create_all(engine)
 
