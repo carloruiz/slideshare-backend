@@ -8,12 +8,19 @@ from slideshare.db import (
     Affiliation as Affiliation_Table,
     Institution as Institution_Table
 )
-from slideshare.utils.db import get_or_create
+from slideshare.utils.db import execute_query, get_or_create
 from sqlalchemy.sql import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from marshmallow import Schema, fields
 from datetime import datetime, timezone
 
+def affiliations_to_dict(row):
+    res = []
+    for affiliation in row['affiliations'].split('|'):
+        id, name, state = affiliation.split(',')
+        res.append({'id': id, 'name': name, 'state': state})
+    row['affiliations'] = res
+    return row
 
 def UserSchema(p):
     return {
@@ -71,22 +78,22 @@ def UserMetaUpdate(p):
 
 class User_id(Resource):
     def get(self, id):
-        U, UM = User_Table.c, User_Meta_Table.c
-        s = select([
-            U.id, 
-            U.username, 
-            U.email, 
-            UM.firstname, 
-            UM.lastname, 
-            UM.joined_on, 
-            UM.last_login, 
-            UM.user_type]).where(
-                (U.id == UM.userid) & 
-                (U.id == id)
-            )
-        user = db_engine.execute(s).first()
-        return dict(user)
-
+        query = '''
+            SELECT u.id, u.username, u.email, um.firstname, um.lastname, 
+                um.user_type, um.joined_on, um.last_login,  
+                STRING_AGG(CONCAT(i.id, ',', i.name, ',', i.state), '|') as affiliations 
+            FROM institution AS i
+            INNER JOIN affiliation AS a ON a.institution = i.id
+            INNER JOIN "user" AS u ON u.id = a."user"
+            INNER JOIN user_meta AS um ON um.userid = u.id
+            WHERE u.username = %s
+            GROUP BY u.id, um.id;
+            '''
+        resp, code = execute_query(db_engine, query, params=(id,), 
+            transform=affiliations_to_dict, unique=True)
+        return resp, code
+       
+       
     def put(self, id):
         payload = request.get_json()
         user_update = UserUpdate(payload)
@@ -107,4 +114,21 @@ class User_id(Resource):
 
         return {}        
 
-
+class User_institution(Resource):
+    def get(self, id):
+        query = '''
+            SELECT u.id, u.username, u.email, um.firstname, um.lastname, 
+                um.user_type, um.joined_on, um.last_login,  
+                STRING_AGG(CONCAT(i.id, ',', i.name, ',', i.state), '|') as affiliations 
+            FROM institution AS i
+            INNER JOIN affiliation AS a ON a.institution = i.id
+            INNER JOIN "user" AS u ON u.id = a."user"
+            INNER JOIN user_meta AS um ON um.userid = u.id
+            WHERE u.id IN (
+                SELECT u.id FROM "user" as u
+                INNER JOIN affiliation as a ON a.user = u.id
+                WHERE a.institution = %s
+            ) GROUP BY u.id, um.id;
+        '''
+        resp, code = execute_query(db_engine, query, (id,), transform=affiliations_to_dict)
+        return resp, code
