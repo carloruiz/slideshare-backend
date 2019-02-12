@@ -12,8 +12,28 @@ from slideshare.db import (
     Institution as Institution_Table,
 )
 from slideshare.utils.db import execute_query, get_or_create
+from slideshare.utils.processing import run_subprocess
 from sqlalchemy.sql import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from werkzeug.utils import secure_filename
+
+import pprint
+import sys
+import os
+
+
+class Upload(Resource):
+    def post(self):
+        f = request.files['file']
+        filename = secure_filename(f.filename)
+        f.save('/Users/carloruiz/' + filename)
+        
+        '''
+        body = request.get_json()
+        with open(body['filename'], 'w') as f:
+            f.write(body['file'])
+        '''
+        return {}, 200, {'Access-Control-Allow-Origin': '*'}
 
 def SlideSchema(p):
    pass 
@@ -28,7 +48,57 @@ def tags_to_dict(row):
 
 class Slide(Resource):
     def post(self):
-        pass 
+        '''
+        *Thread1
+        1. do conversion and img split
+        2. upload thumbs to aws
+        *Thread2
+        1. upload pptx file to aws
+        *After join
+        generate sql row..
+        '''
+        # save incoming file locally
+
+        
+        f = request.files['file']
+        filename = secure_filename(f.filename)
+        idx = filename.rfind('.')
+        name, ext = filename[:idx], filename[idx:]
+
+        tmp_path = tempfile.TemporaryDirectory()
+        thumb_dir = tmp_path+'/thumbs/'
+        os.mkdir(thumb_dir)
+        
+        f.save(tmp_path+'/'+filename)
+
+        def thread_one():
+            args = 'libreoffice --headless --convert-to pdf %s --outdir %s' % \
+                (tmp_path+'/'+filename,  tmp_path)
+            flag = run_subprocess(args.split(), userid, 
+                exception=sp.TimeoutExpired, timeout=20)
+                
+            if not flag:
+                args = "pdftoppm -jpeg %s %s" % (tmp_dir+'/'+name+'.pdf', thumb_dir) 
+                flag = run_subprocess(args.split(), userid, timeout=20)
+           
+            os.remove(tmp_path+'/'+name+'.pdf')
+            for f in os.listdir(thumb_dir):
+                os.rename(thumb_dir+'/'+f, thumb_dir+'/'+'0'*(7-len(f[1:]))+f[1:])
+            
+            
+            if not flag:
+                args = 'aws s3 cp --recursive --quiet {} s3://slide-share-thumbs/{}/{}/'.\
+                    format(thumb_dir, userid, resourceid)
+                flag = run_subprocess(args.split(), userid, timeout=20)
+
+        def thread_two():
+            args = 'aws s3 cp --quiet {} s3://slide-share/{}/{}/'.format(
+                tmp_dir+'/'+filename, userid, resourceid)
+            flag = run_subprocess(args.split(), userid, timeout=20)
+        
+                  
+
+        tmp_path.close()
 
 class Slide_id(Resource):
     def get(self, id):
