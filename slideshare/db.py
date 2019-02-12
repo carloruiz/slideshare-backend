@@ -1,7 +1,7 @@
 from sqlalchemy import Table, create_engine, MetaData
 import os
 
-db_engine = create_engine(os.environ['DB_URI_LOCAL'])
+db_engine = create_engine(os.environ['DB_URI'])
 db_metadata = MetaData(bind=db_engine)
 
 User        = Table('user', db_metadata, autoload=True)

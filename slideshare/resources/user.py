@@ -97,7 +97,7 @@ def UserMetaUpdate(p):
     return {k: v for k,v in p.items() if k in  mutable_columns}
 
 class User_username(Resource):
-    def get(self, id):
+    def get(self, username):
         query = '''
             SELECT u.id, u.username, u.email, um.firstname, um.lastname, 
                 um.user_type, um.joined_on, um.last_login,  
