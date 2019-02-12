@@ -23,49 +23,69 @@ def affiliations_to_dict(row):
     return row
 
 def UserSchema(p):
-    return {
-        "username": p['username'],
-        "email": p['email'],
-        'password': p['password']
-    }
+    try:
+        resp, err =  {
+            "username": p['username'],
+            "email": p['email'],
+            'password': p['password']
+        }, 0
+    except KeyError as e:
+        resp, err = "'%s' key is required" % e.args[0], 1
+
+    return resp, err
 
 def UserMetaSchema(p, new_pk):
-    return {
+    resp, err = {
         "userid": new_pk,
-        "firstname":p['firstname'],
-        "lastname": p['lastname'],
+        "firstname":p.get('firstname'),
+        "lastname": p.get('lastname'),
         "joined_on": datetime.now(timezone.utc),
         "last_login": datetime.now(timezone.utc),
-        "user_type": p['user_type']
-    }
+        "user_type": p.get('user_type')
+    }, 0
+    
+    return resp, err
 
 def InstitutionSchema(institution_str):
-    name, state = institution_str.split(',')
-    return {
-        'name': name,
-        'state': state
-    }
+    try:
+        name, state = institution_str.split(',') 
+        resp, err = {
+            'name': name,
+            'state': state
+        }, 0
+    except (ValueError, TypeError) as e:
+        resp, err = "affiliations not formatted correctly." + \
+                    "Array(['name,state',]). No space between name, state", 1
+    return resp, err 
 
 class User(Resource):
     def post(self):
-        payload = request.get_json()
-        new_user = UserSchema(payload)
-        try:
-            user_pk = db_engine.execute(User_Table.insert(), **new_user).inserted_primary_key[0]
-        except IntegrityError as e:
-            return {"message": "username or email is already taken"}, 400
+        conn = db_engine.connect()
+        with conn.begin() as trans:
+            payload = request.get_json()
+            new_user, err = UserSchema(payload)
+            if err:
+                return {"message": new_user}, 400
+            try:
+                user_pk = conn.execute(User_Table.insert(), **new_user).\
+                    inserted_primary_key[0]
+            except IntegrityError as e:
+                return {"message": "username or email is already taken"}, 400
+            
+            new_user_meta, err = UserMetaSchema(payload, user_pk)
+            res = conn.execute(User_Meta_Table.insert(), **new_user_meta)
+
+            IT = Institution_Table
+            for affiliation in payload['affiliations']:
+                inst, err = InstitutionSchema(affiliation)
+                if err:
+                    trans.rollback()
+                    return {"message": inst}, 400
+                inst_pk = get_or_create(db_engine, inst, IT, 
+                    (IT.c.name == inst['name']) &
+                    (IT.c.state == inst['state']))
+                conn.execute(Affiliation_Table.insert(), user=user_pk, institution=inst_pk)
         
-        new_user_meta = UserMetaSchema(payload, user_pk)
-        res = db_engine.execute(User_Meta_Table.insert(), **new_user_meta)
-
-        IT = Institution_Table
-        for affiliation in payload['affiliations']:
-            inst = InstitutionSchema(affiliation)
-            inst_pk = get_or_create(db_engine, inst, IT, 
-                (IT.c.name == inst['name']) &
-                (IT.c.state == inst['state']))
-            db_engine.execute(Affiliation_Table.insert(), user=user_pk, institution=inst_pk)
-
         return {}
 
 def UserUpdate(p):
@@ -76,7 +96,7 @@ def UserMetaUpdate(p):
     mutable_columns = ['firstname', 'lastname', 'user_type']
     return {k: v for k,v in p.items() if k in  mutable_columns}
 
-class User_id(Resource):
+class User_username(Resource):
     def get(self, id):
         query = '''
             SELECT u.id, u.username, u.email, um.firstname, um.lastname, 

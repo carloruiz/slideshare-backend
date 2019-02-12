@@ -1,6 +1,17 @@
 stack
+Frameworks/services/modules
+Flask (REST Framework)
+Postgres
+sqlalchemy 
+alembic 
 
-Falcon (REST Framework)
-sqlalchemy (ORM. Postgress)
-alembic (sql migrations)
 
+To run
+source venv/bin/activate
+source config.sh
+gunicorn [--reload] slideshare:app
+
+
+TODO
+-update affiliations
+-
