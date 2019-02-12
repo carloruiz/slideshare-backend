@@ -1,7 +1,7 @@
 #!/bin/sh
 
 source secret.sh
-export PRODUCTION=0
+export PRODUCTION=1
 export FLASK_APP=slideshare
 export FLASK_ENV=production
 export DB_NAME=slideshare
