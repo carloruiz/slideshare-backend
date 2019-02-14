@@ -3,40 +3,24 @@ from flask_restful import Resource
 from slideshare.db import (
     db_engine, 
     db_metadata, 
+    Slide_id as Slide_Id_Table,
     Slide as Slide_Table,
     Slide_Tag as Slide_Tag_Table,
     Tag as Tag_Table,
-    User as User_Table, 
-    User_Meta as User_Meta_Table,
-    Affiliation as Affiliation_Table,
-    Institution as Institution_Table,
 )
 from slideshare.utils.db import execute_query, get_or_create
 from slideshare.utils.processing import run_subprocess
+from slideshare.utils.aws import aws_s3_uri, aws_s3_url
+
 from sqlalchemy.sql import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from werkzeug.utils import secure_filename
 
-import pprint
+from datetime import datetime, timezone
+from threading import Thread
 import sys
 import os
 
-
-class Upload(Resource):
-    def post(self):
-        f = request.files['file']
-        filename = secure_filename(f.filename)
-        f.save('/Users/carloruiz/' + filename)
-        
-        '''
-        body = request.get_json()
-        with open(body['filename'], 'w') as f:
-            f.write(body['file'])
-        '''
-        return {}, 200, {'Access-Control-Allow-Origin': '*'}
-
-def SlideSchema(p):
-   pass 
 
 def tags_to_dict(row):
     res = []
@@ -45,6 +29,38 @@ def tags_to_dict(row):
         res.append({'id': id, 'tag': tag})
     row['tags'] = res
     return row   
+
+
+def strfmt_bytes(size):
+    # MacOS displays different file size in teriminal vs finder
+    # I chose to display finder size.. To get 'real' size use 
+    # power = 1024
+    power = 1000
+    n = 0
+    Dic_powerN = {0 : '', 1: 'K', 2: 'M', 3: 'G'}
+    while size > power:
+        size /=  power
+        n += 1
+    return str(round(size)) + ' ' + Dic_powerN[n]+'B'
+
+
+def SlideSchema(p, resourceid, filesize):
+    try:
+        resp, err =  {
+            "username": p['username'],
+            "title": p['title']
+            "description": p['description'],
+            "created_on": datetime.now(timezone.utc),
+            "last_mod": datetime.now(timezone.utc),
+            "url": aws_s3_url(os.environ['S3_PPT_BUCKET'], p['userid'], resourceid),
+            "thumbnail": aws_s3_url(os.environ['S3_THUMB_BUCKET'], p['userid'], resourceid),
+            "size": filesize,
+        }, 0
+    except KeyError as e:
+        resp, err = "'%s' key is required" % e.args[0], 1
+
+    return resp, err
+
 
 class Slide(Resource):
     def post(self):
@@ -57,20 +73,9 @@ class Slide(Resource):
         *After join
         generate sql row..
         '''
-        # save incoming file locally
 
-        
-        f = request.files['file']
-        filename = secure_filename(f.filename)
-        idx = filename.rfind('.')
-        name, ext = filename[:idx], filename[idx:]
-
-        tmp_path = tempfile.TemporaryDirectory()
-        thumb_dir = tmp_path+'/thumbs/'
-        os.mkdir(thumb_dir)
-        
-        f.save(tmp_path+'/'+filename)
-
+        # TOTEST exceptions inside thread
+        # TODO tags
         def thread_one():
             args = 'libreoffice --headless --convert-to pdf %s --outdir %s' % \
                 (tmp_path+'/'+filename,  tmp_path)
@@ -87,19 +92,78 @@ class Slide(Resource):
             
             
             if not flag:
-                args = 'aws s3 cp --recursive --quiet {} s3://slide-share-thumbs/{}/{}/'.\
-                    format(thumb_dir, userid, resourceid)
-                flag = run_subprocess(args.split(), userid, timeout=20)
+                aws_thumb_uri = aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid)
+                args = 'aws s3 cp --recursive --quiet {} {}'.\
+                    format(thumb_dir, aws_thumb_uri)
+                aws_flag = run_subprocess(args.split(), userid, timeout=20)
 
         def thread_two():
-            args = 'aws s3 cp --quiet {} s3://slide-share/{}/{}/'.format(
-                tmp_dir+'/'+filename, userid, resourceid)
-            flag = run_subprocess(args.split(), userid, timeout=20)
+            try:
+                s3.upload_file(tmp_dir+'/'+filename, 
+                    os.environ['S3_PPT_BUCKET'], '{}/{}/'.format(userid, resourceid))
+                filesize = strfmt_bytes(os.path.getsize(tmp_dir+'/'+filename))
+            except Exception as e:
+               aws_flag = 1 
+               raise e
+                
+        try:
+            tmp_path = tempfile.TemporaryDirectory()
+            s3 = boto3.resource('s3')
+            aws_ppt_uri, aws_thumb_uri = None, None
+            flag, aws_flag = 0, 0
+            filesize = 0
+
+            # generate resource id
+            conn = db_engine.connect()
+            trans = conn.begin() 
+            resourceid = conn.execute(Slide_Id_Table.insert()).inserted_primary_key[0]
         
-                  
+            # parse request body
+            payload = request.get_json()
+            username, userid = payload['username'], payload['userid']
 
-        tmp_path.close()
+            # get file, extract filename, file extension
+            f = request.files['file']
+            filename = secure_filename(f.filename)
+            idx = filename.rfind('.')
+            name, ext = filename[:idx], filename[idx:]
 
+            # create tmp directory and thumbnail directory
+            thumb_dir = tmp_path+'/thumbs/'
+            os.mkdir(thumb_dir)
+            f.save(tmp_path+'/'+filename)
+    
+            threads = []
+            for func in [thread_one, thread_two]:
+                thread = Thread(target=func)
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+           
+            if flag or aws_flag:
+                raise Exception
+            
+            # insert sql row to slide table
+            new_slide_meta = SlideSchema(payload, resourceid, filesize)
+            res = conn.execute(Slide_Table.insert(), **new_slide_meta) 
+            # tags (code identical to affiliations in user.py)
+            
+            tmp_path.close()
+            trans.commmit()
+            return {}, 204
+        except:
+            tmp_path.close()
+            trans.rollback()
+            if aws_flag:
+                args = 'aws s3 rm --recursive --quiet %s && ' % aws_thumb_uri + \
+                       'aws s3 rm --quiet %s' % aws_ppt_uri
+                aws_flag = run_subprocess(args.split(), userid, timeout=20)
+            #log error
+            return {}, 500
+
+    
+    
 class Slide_id(Resource):
     def get(self, id):
         query = '''

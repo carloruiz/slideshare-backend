@@ -4,6 +4,10 @@ source secret.sh
 export PRODUCTION=1
 export FLASK_APP=slideshare
 export FLASK_ENV=production
+
+export S3_THUMB_BUCKET=slide-share-thumbs
+export S3_PPT_BUCKET=slide-sharing-platform
+
 export DB_NAME=slideshare
 export DB_USER=csr2131
 export DB_HOST=slideshare-prod.cshgvdefxewm.us-east-1.rds.amazonaws.com

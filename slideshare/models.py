@@ -28,11 +28,15 @@ user_meta = Table('user_meta', metadata,
     extend_existing=True,
 )
 
-slide = Table('slide', metadata,
+slide_id = Table('slide_id', metadata,
     Column('id', Integer, primary_key=True),
+    extend_existing=True
+)
+slide = Table('slide', metadata,
+    Column('id', Integer, ForeignKey('slide_id.id', ondelete='CASCADE'), primary_key=True),
     Column('title', String(30)),
     Column('url', String, unique=True),
-    Column('username', Integer, ForeignKey('user.username', 
+    Column('username', String(15), ForeignKey('user.username', 
         onupdate='CASCADE', ondelete='CASCADE')),
     Column('size', String(20)),
     Column('description', String),
@@ -72,6 +76,6 @@ slide_tag = Table('slide_tag', metadata,
 )
 
 if __name__ == "__main__":
-    engine = create_engine(os.environ['DB_URI_LOCAL'])
+    engine = create_engine(os.environ['DB_URI'])
     metadata.create_all(engine)
 

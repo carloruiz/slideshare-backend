@@ -76,6 +76,7 @@ class User(Resource):
             res = conn.execute(User_Meta_Table.insert(), **new_user_meta)
 
             IT = Institution_Table
+            # TODO upload all institutions in one statement. same for affs
             for affiliation in payload['affiliations']:
                 inst, err = InstitutionSchema(affiliation)
                 if err:
@@ -109,7 +110,7 @@ class User_username(Resource):
             WHERE u.username = %s
             GROUP BY u.id, um.id;
             '''
-        resp, code = execute_query(db_engine, query, params=(id,), 
+        resp, code = execute_query(db_engine, query, params=(username,), 
             transform=affiliations_to_dict, unique=True)
         return resp, code
        
