@@ -13,5 +13,6 @@ gunicorn [--reload] slideshare:app
 
 
 TODO
+-at least 1 tag required (else sql returns empty join)
 -update affiliations
 -

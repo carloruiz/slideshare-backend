@@ -11,9 +11,9 @@ metadata = MetaData()
 
 user = Table('user', metadata,
     Column('id', Integer, primary_key=True),
-    Column('username', String(15), unique=True),
-    Column('email', String, unique=True),
-    Column('password', String),
+    Column('username', String(15), unique=True, nullable=False),
+    Column('email', String, unique=True, nullable=False),
+    Column('password', String, nullable=False),
     extend_existing=True,
 )
 
@@ -34,23 +34,23 @@ slide_id = Table('slide_id', metadata,
 )
 slide = Table('slide', metadata,
     Column('id', Integer, ForeignKey('slide_id.id', ondelete='CASCADE'), primary_key=True),
-    Column('title', String(30)),
-    Column('url', String, unique=True),
+    Column('title', String(30), nullable=False),
+    Column('url', String, unique=True, nullable=False),
     Column('userid', Integer, ForeignKey('user.id', ondelete='CASCADE')),
     Column('username', String(15), ForeignKey('user.username', 
         onupdate='CASCADE', ondelete='CASCADE')),
-    Column('size', String(20)),
+    Column('size', String(20), nullable=False),
     Column('description', String),
     Column('created_on', DateTime, default=datetime.now(timezone.utc)),
     Column('last_mod', DateTime, default=datetime.now(timezone.utc)),
-    Column('thumbnail', String, unique=True),
+    Column('thumbnail', String, unique=True, nullable=False),
     extend_existing=True
 )
 
 institution = Table('institution', metadata,
     Column('id', Integer, primary_key=True),
-    Column('name', String),
-    Column('state', String(30)),
+    Column('name', String, nullable=False),
+    Column('state', String(30), nullable=False),
     UniqueConstraint('name', 'state', name='name_state_unique'),
     extend_existing=True,
 )
@@ -65,7 +65,7 @@ affiliation = Table('affiliation', metadata,
 
 tag = Table('tag', metadata,
     Column('id', Integer, primary_key=True),
-    Column('tag', String, unique=True),
+    Column('tag', String, unique=True, nullable=False),
     extend_existing=True,
 )
 

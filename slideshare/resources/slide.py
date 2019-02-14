@@ -213,7 +213,7 @@ class Slide_user(Resource):
             SELECT s.*, STRING_AGG(CONCAT(t.id, ',', t.tag), '|') as tags FROM slide as s 
             INNER JOIN slide_tag as st ON s.id = st.slide
             INNER JOIN tag as t ON t.id = st.tag
-            WHERE s.username = %s
+            WHERE s.userid = %s
             GROUP BY s.id;
             '''
         resp, code = execute_query(db_engine, query, params=(id,), transform=tags_to_dict)

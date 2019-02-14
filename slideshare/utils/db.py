@@ -1,5 +1,7 @@
 from sqlalchemy.sql import select
 from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime
+
 
 def get_or_create(db_engine, obj, table, condition):
     try:
@@ -15,20 +17,50 @@ def get_or_create(db_engine, obj, table, condition):
            pk = get_or_create(db_engine, obj, table, condition)
     return pk
 
-def execute_query(db_engine, query, params, transform=None, unique=False):
+def execute_query(conn, query, params, transform=None, unique=False):
+    '''
+    Executes query. Converts datetime objects to strings
+    for json serialization. 
+
+    Args:
+        conn:       engine or connection object. (if connection is passed, transaction
+                    can be rolled back by the caller)
+        query:      sql query in string format
+        params:     string parameters for query string
+        transform:  a callable that accepts a mutable, subsriptable object and returns a
+                    modified object of the same type
+        unique:     boolean. Returns a single object. 
+    Returns:
+        List of dicts if unique=False, else a single dict, and an http status code. 
+        In case of exception, returns empty dict and 500 code.
+
+    Notes:
+        - convoluted code to convert datetime to strings for json serialization
+    '''
     code = 200
+    res = []
+
+    checked = 0
+    datetime_columns = []
     try:
-        if transform:
-            res = [transform(dict(row)) for row in db_engine.execute(query, params)]
-        else:
-            res = [dict(row) for row in db_engine.execute(query, params)]
-            
+        for row in conn.execute(query, params):
+            row = dict(row)
+            if not checked and not datetime_columns:
+                datetime_columns = [key for key in row.keys() if type(row[key]) == datetime]
+                checked = 1
+            for col in datetime_columns:
+                row[col] = str(row[col])
+
+            if transform:
+                res.append(transform(row))
+            else:
+                res.append(row)       
         if len(res) == 0:
             code = 204
         else:
             if unique: res = res[0]
     except Exception as e:
         print(e)
-        res, code = {}, 500
+        code = 500
     
     return res, code
