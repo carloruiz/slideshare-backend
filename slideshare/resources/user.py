@@ -97,8 +97,8 @@ def UserMetaUpdate(p):
     mutable_columns = ['firstname', 'lastname', 'user_type']
     return {k: v for k,v in p.items() if k in  mutable_columns}
 
-class User_username(Resource):
-    def get(self, username):
+class User_id(Resource):
+    def get(self, id):
         query = '''
             SELECT u.id, u.username, u.email, um.firstname, um.lastname, 
                 um.user_type, um.joined_on, um.last_login,  
@@ -107,10 +107,10 @@ class User_username(Resource):
             INNER JOIN affiliation AS a ON a.institution = i.id
             INNER JOIN "user" AS u ON u.id = a."user"
             INNER JOIN user_meta AS um ON um.userid = u.id
-            WHERE u.username = %s
+            WHERE u.id = %s
             GROUP BY u.id, um.id;
             '''
-        resp, code = execute_query(db_engine, query, params=(username,), 
+        resp, code = execute_query(db_engine, query, params=(id,), 
             transform=affiliations_to_dict, unique=True)
         return resp, code
        

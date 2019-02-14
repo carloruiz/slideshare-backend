@@ -19,8 +19,17 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
 from threading import Thread
 import sys
+import tempfile
 import os
 
+
+class Upload(Resource):
+    def post(self):
+        print(request.get_json())
+        print(request.files)
+        print(request.form)
+        print(request.form['size'])
+        return {}, 200, {"Access-Control-Allow-Origin": '*'}
 
 def tags_to_dict(row):
     res = []
@@ -44,17 +53,18 @@ def strfmt_bytes(size):
     return str(round(size)) + ' ' + Dic_powerN[n]+'B'
 
 
-def SlideSchema(p, resourceid, filesize):
+def SlideSchema(p, resourceid):
     try:
         resp, err =  {
             "username": p['username'],
-            "title": p['title']
+            "userid": p['userid'],
+            "title": p['title'],
             "description": p['description'],
             "created_on": datetime.now(timezone.utc),
             "last_mod": datetime.now(timezone.utc),
             "url": aws_s3_url(os.environ['S3_PPT_BUCKET'], p['userid'], resourceid),
             "thumbnail": aws_s3_url(os.environ['S3_THUMB_BUCKET'], p['userid'], resourceid),
-            "size": filesize,
+            "size": strfmt_bytes(p['size']),
         }, 0
     except KeyError as e:
         resp, err = "'%s' key is required" % e.args[0], 1
@@ -73,7 +83,7 @@ class Slide(Resource):
         *After join
         generate sql row..
         '''
-
+        print('In post handler')
         # TOTEST exceptions inside thread
         # TODO tags
         def thread_one():
@@ -101,7 +111,6 @@ class Slide(Resource):
             try:
                 s3.upload_file(tmp_dir+'/'+filename, 
                     os.environ['S3_PPT_BUCKET'], '{}/{}/'.format(userid, resourceid))
-                filesize = strfmt_bytes(os.path.getsize(tmp_dir+'/'+filename))
             except Exception as e:
                aws_flag = 1 
                raise e
@@ -111,28 +120,31 @@ class Slide(Resource):
             s3 = boto3.resource('s3')
             aws_ppt_uri, aws_thumb_uri = None, None
             flag, aws_flag = 0, 0
-            filesize = 0
-
+            print('var initialization')
+            
             # generate resource id
             conn = db_engine.connect()
             trans = conn.begin() 
             resourceid = conn.execute(Slide_Id_Table.insert()).inserted_primary_key[0]
-        
-            # parse request body
-            payload = request.get_json()
-            username, userid = payload['username'], payload['userid']
+            print('got resource id {}'.format(resourceid))
+
+            # parse request form
+            username, userid = request.form['username'], request.form['userid']
+            print("username:%s, userid:%s" % (username, userid))
 
             # get file, extract filename, file extension
             f = request.files['file']
             filename = secure_filename(f.filename)
             idx = filename.rfind('.')
             name, ext = filename[:idx], filename[idx:]
+            print("filename: %s, ext: %s" % (filename, ext))
 
             # create tmp directory and thumbnail directory
             thumb_dir = tmp_path+'/thumbs/'
             os.mkdir(thumb_dir)
             f.save(tmp_path+'/'+filename)
-    
+            print("saved file to tmp folder")
+
             threads = []
             for func in [thread_one, thread_two]:
                 thread = Thread(target=func)
@@ -145,13 +157,13 @@ class Slide(Resource):
                 raise Exception
             
             # insert sql row to slide table
-            new_slide_meta = SlideSchema(payload, resourceid, filesize)
+            new_slide_meta = SlideSchema(request.form, resourceid)
             res = conn.execute(Slide_Table.insert(), **new_slide_meta) 
             # tags (code identical to affiliations in user.py)
             
             tmp_path.close()
             trans.commmit()
-            return {}, 204
+            return {}, 204, {"Access-Control-Allow-Origin": '*'}
         except:
             tmp_path.close()
             trans.rollback()
@@ -160,7 +172,7 @@ class Slide(Resource):
                        'aws s3 rm --quiet %s' % aws_ppt_uri
                 aws_flag = run_subprocess(args.split(), userid, timeout=20)
             #log error
-            return {}, 500
+            return {}, 500, {"Access-Control-Allow-Origin": '*'}
 
     
     

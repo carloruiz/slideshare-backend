@@ -5,9 +5,10 @@ def get_or_create(db_engine, obj, table, condition):
     try:
         s = select([table]).where(condition)
         r = db_engine.execute(s).first()
-        if not r:
-            r = db_engine.execute(table.insert(), **obj).inserted_primary_key[0]
-        pk = r.id
+        if r:
+            pk = r.id
+        else:
+            pk = db_engine.execute(table.insert(), **obj).inserted_primary_key[0]
     except SQLAlchemyError as e:
         # TODO log error
         if 'unique constraint' in message: # could cause inf loop
