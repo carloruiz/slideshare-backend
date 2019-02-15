@@ -10,7 +10,7 @@ def gen_err(userid, err_str):
 
 def run_subprocess(args, userid, exception=Exception, timeout=30):
     try:
-        res = sp.run(args=args, stderr=sp.PIPE, timeout=timeout)
+        res = sp.run(args=args, stdout=sp.PIPE, stderr=sp.PIPE, timeout=timeout)
         if res.returncode != 0:
             err = gen_err(userid, res.stderr.decode('utf-8'))
             print(err)

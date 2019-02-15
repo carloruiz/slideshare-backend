@@ -86,96 +86,85 @@ class Slide(Resource):
         *After join
         generate sql row..
         '''
-        print('In post handler')
         # TOTEST exceptions inside thread
         # TODO tags
         def thread_one():
-            print("In thread 1")
-            
-            print(os.listdir(tmp_path))
             args = 'libreoffice --headless --convert-to pdf %s --outdir %s' % \
-                (tmp_path+filename,  '/test')
+                (tmp_path+filename,  tmp_path)
             flag = run_subprocess(args.split(), userid, 
                 exception=sp.TimeoutExpired, timeout=20)
 
-            print("Libre office has run")
-            print(os.listdir('/test'))
-            if flag: gen_flag.set()
-
-            if not flag:
-                args = "pdftoppm -jpeg %s %s" % (tmp_path+name+'.pdf', thumb_dir) 
-                flag = run_subprocess(args.split(), userid, timeout=20)
+            if flag: err_flag.set(); return
            
-            if flag: gen_flag.set()
             
-            #os.remove(tmp_path+name+'.pdf')
+            args = "pdftoppm -jpeg %s %s" % (tmp_path+name+'.pdf', thumb_dir) 
+            flag = run_subprocess(args.split(), userid, timeout=20)
+           
+            if flag: err_flag.set(); return
+            
+            os.remove(tmp_path+name+'.pdf')
             for f in os.listdir(thumb_dir):
                 os.rename(thumb_dir+'/'+f, thumb_dir+'/'+'0'*(7-len(f[1:]))+f[1:])
             
             
-            if not flag:
-                aws_thumb_uri = aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid)
-                args = 'aws s3 cp --recursive --quiet {} {}'.\
-                    format(thumb_dir, aws_thumb_uri)
-                flag = run_subprocess(args.split(), userid, timeout=20)
-                if flag: aws_flag.set()
+            aws_thumb_uri = aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid)
+            args = 'aws s3 cp --recursive --quiet {} {}'.\
+                format(thumb_dir, aws_thumb_uri)
+            flag = run_subprocess(args.split(), userid, timeout=20)
+            aws_flag.set()
+
+            if flag: err_flag.set()
 
 
 
         def thread_two():
-            print("in thread2")
             try:
-                s3.upload_file(tmp_path+'/'+filename, 
-                    os.environ['S3_PPT_BUCKET'], '{}/{}/'.format(userid, resourceid))
+                s3.upload_file(tmp_path+filename, 
+                    os.environ['S3_PPT_BUCKET'], '{}/{}.pptx'.format(userid, resourceid))
+                aws_flag.set()
             except Exception as e:
-               aws_flag.set()
-               raise e
+                err_flag.set()
+                raise e
                 
         try:
             tmp_dir = tempfile.TemporaryDirectory()
             tmp_path = tmp_dir.name +'/'
             s3 = boto3.client('s3')
             aws_ppt_uri, aws_thumb_uri = None, None
-            # TODO flags are not beign shared from master to threads
-            gen_flag, aws_flag = ThreadEvent(), ThreadEvent()
-            print('var initialization')
+            err_flag, aws_flag = ThreadEvent(), ThreadEvent()
             
             # generate resource id
             conn = db_engine.connect()
             trans = conn.begin() 
             resourceid = conn.execute(Slide_Id_Table.insert()).inserted_primary_key[0]
-            print('got resource id {}'.format(resourceid))
 
             # parse request form
             new_slide_meta, err = SlideSchema(request.form, resourceid)
             if err:
                 raise Exception(new_slide_meta)
             username, userid = new_slide_meta['username'], new_slide_meta['userid']
-            print("username:%s, userid:%s" % (username, userid))
 
             # get file, extract filename, file extension
             f = request.files['file']
             filename = secure_filename(f.filename)
             idx = filename.rfind('.')
             name, ext = filename[:idx], filename[idx:]
-            print("filename: %s, ext: %s" % (filename, ext))
 
             # create tmp directory and thumbnail directory
             thumb_dir = tmp_path+'thumbs/'
             os.mkdir(thumb_dir)
-            f.save('/test/'+filename)
-            print("saved file to tmp folder")
+            f.save(tmp_path+filename)
 
             threads = []
             for func in [thread_one, thread_two]:
                 thread = Thread(target=func)
+                threads.append(thread)
                 thread.start()
 
             for thread in threads:
                 thread.join()
-            
-            if gen_flag.is_set() or aws_flag.is_set():
-                print("There has been an error in the threads")
+           
+            if err_flag.is_set():
                 raise Exception
             
             # insert sql row to slide table
@@ -188,7 +177,7 @@ class Slide(Resource):
         except Exception as e:
             tmp_dir.cleanup()
             trans.rollback()
-            if aws_flag:
+            if aws_flag.is_set():
                 print('cleaning up aws')
                 args = 'aws s3 rm --recursive --quiet %s && ' % aws_thumb_uri + \
                        'aws s3 rm --quiet %s' % aws_ppt_uri
