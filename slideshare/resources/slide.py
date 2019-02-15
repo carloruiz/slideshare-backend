@@ -15,9 +15,11 @@ from slideshare.utils.aws import aws_s3_uri, aws_s3_url
 from sqlalchemy.sql import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from werkzeug.utils import secure_filename
+import boto3
 
 from datetime import datetime, timezone
-from threading import Thread
+from threading import Thread, Event as ThreadEvent
+import subprocess as sp
 import sys
 import tempfile
 import os
@@ -56,6 +58,7 @@ def strfmt_bytes(size):
 def SlideSchema(p, resourceid):
     try:
         resp, err =  {
+            "id": resourceid,
             "username": p['username'],
             "userid": p['userid'],
             "title": p['title'],
@@ -64,7 +67,7 @@ def SlideSchema(p, resourceid):
             "last_mod": datetime.now(timezone.utc),
             "url": aws_s3_url(os.environ['S3_PPT_BUCKET'], p['userid'], resourceid),
             "thumbnail": aws_s3_url(os.environ['S3_THUMB_BUCKET'], p['userid'], resourceid),
-            "size": strfmt_bytes(p['size']),
+            "size": strfmt_bytes(int(p['size'])),
         }, 0
     except KeyError as e:
         resp, err = "'%s' key is required" % e.args[0], 1
@@ -87,16 +90,25 @@ class Slide(Resource):
         # TOTEST exceptions inside thread
         # TODO tags
         def thread_one():
+            print("In thread 1")
+            
+            print(os.listdir(tmp_path))
             args = 'libreoffice --headless --convert-to pdf %s --outdir %s' % \
-                (tmp_path+'/'+filename,  tmp_path)
+                (tmp_path+filename,  '/test')
             flag = run_subprocess(args.split(), userid, 
                 exception=sp.TimeoutExpired, timeout=20)
-                
+
+            print("Libre office has run")
+            print(os.listdir('/test'))
+            if flag: gen_flag.set()
+
             if not flag:
-                args = "pdftoppm -jpeg %s %s" % (tmp_dir+'/'+name+'.pdf', thumb_dir) 
+                args = "pdftoppm -jpeg %s %s" % (tmp_path+name+'.pdf', thumb_dir) 
                 flag = run_subprocess(args.split(), userid, timeout=20)
            
-            os.remove(tmp_path+'/'+name+'.pdf')
+            if flag: gen_flag.set()
+            
+            #os.remove(tmp_path+name+'.pdf')
             for f in os.listdir(thumb_dir):
                 os.rename(thumb_dir+'/'+f, thumb_dir+'/'+'0'*(7-len(f[1:]))+f[1:])
             
@@ -105,21 +117,27 @@ class Slide(Resource):
                 aws_thumb_uri = aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid)
                 args = 'aws s3 cp --recursive --quiet {} {}'.\
                     format(thumb_dir, aws_thumb_uri)
-                aws_flag = run_subprocess(args.split(), userid, timeout=20)
+                flag = run_subprocess(args.split(), userid, timeout=20)
+                if flag: aws_flag.set()
+
+
 
         def thread_two():
+            print("in thread2")
             try:
-                s3.upload_file(tmp_dir+'/'+filename, 
+                s3.upload_file(tmp_path+'/'+filename, 
                     os.environ['S3_PPT_BUCKET'], '{}/{}/'.format(userid, resourceid))
             except Exception as e:
-               aws_flag = 1 
+               aws_flag.set()
                raise e
                 
         try:
-            tmp_path = tempfile.TemporaryDirectory()
-            s3 = boto3.resource('s3')
+            tmp_dir = tempfile.TemporaryDirectory()
+            tmp_path = tmp_dir.name +'/'
+            s3 = boto3.client('s3')
             aws_ppt_uri, aws_thumb_uri = None, None
-            flag, aws_flag = 0, 0
+            # TODO flags are not beign shared from master to threads
+            gen_flag, aws_flag = ThreadEvent(), ThreadEvent()
             print('var initialization')
             
             # generate resource id
@@ -129,7 +147,10 @@ class Slide(Resource):
             print('got resource id {}'.format(resourceid))
 
             # parse request form
-            username, userid = request.form['username'], request.form['userid']
+            new_slide_meta, err = SlideSchema(request.form, resourceid)
+            if err:
+                raise Exception(new_slide_meta)
+            username, userid = new_slide_meta['username'], new_slide_meta['userid']
             print("username:%s, userid:%s" % (username, userid))
 
             # get file, extract filename, file extension
@@ -140,9 +161,9 @@ class Slide(Resource):
             print("filename: %s, ext: %s" % (filename, ext))
 
             # create tmp directory and thumbnail directory
-            thumb_dir = tmp_path+'/thumbs/'
+            thumb_dir = tmp_path+'thumbs/'
             os.mkdir(thumb_dir)
-            f.save(tmp_path+'/'+filename)
+            f.save('/test/'+filename)
             print("saved file to tmp folder")
 
             threads = []
@@ -152,26 +173,28 @@ class Slide(Resource):
 
             for thread in threads:
                 thread.join()
-           
-            if flag or aws_flag:
+            
+            if gen_flag.is_set() or aws_flag.is_set():
+                print("There has been an error in the threads")
                 raise Exception
             
             # insert sql row to slide table
-            new_slide_meta = SlideSchema(request.form, resourceid)
             res = conn.execute(Slide_Table.insert(), **new_slide_meta) 
-            # tags (code identical to affiliations in user.py)
             
-            tmp_path.close()
-            trans.commmit()
+            # tags (code identical to affiliations in user.py)
+            tmp_dir.cleanup()
+            trans.commit()
             return {}, 204, {"Access-Control-Allow-Origin": '*'}
-        except:
-            tmp_path.close()
+        except Exception as e:
+            tmp_dir.cleanup()
             trans.rollback()
             if aws_flag:
+                print('cleaning up aws')
                 args = 'aws s3 rm --recursive --quiet %s && ' % aws_thumb_uri + \
                        'aws s3 rm --quiet %s' % aws_ppt_uri
                 aws_flag = run_subprocess(args.split(), userid, timeout=20)
             #log error
+            raise e
             return {}, 500, {"Access-Control-Allow-Origin": '*'}
 
     
