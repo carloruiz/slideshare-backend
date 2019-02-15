@@ -24,8 +24,6 @@ import sys
 import tempfile
 import os
 
-
-
 class Upload(Resource):
     def post(self):
         print(request.get_json())
@@ -109,7 +107,8 @@ class Slide(Resource):
             
             
             args = 'aws s3 cp --recursive --quiet {} {}'.\
-                format(thumb_dir, aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid, ext='/'))
+                format(thumb_dir, aws_s3_uri(os.environ['S3_THUMB_BUCKET'], 
+                    userid, resourceid, ext='/'))
             flag = run_subprocess(args.split(), userid, timeout=20)
             aws_flag.set()
 
@@ -124,7 +123,21 @@ class Slide(Resource):
             except Exception as e:
                 err_flag.set()
                 raise e
+
+        # TODO upload all tags in one call
+        def thread_three():
+            try:
+                TT = Tag_Table
+                slide_tags = []
+                for tag_obj in new_slide_meta['tags']:
+                    tag = {"tag": tab_obj['value'].lower()}
+                    tag_pk = get_or_create(conn, tag, TT, (TT.c.tag == tag['tag']))
+                    slide_tags.append({"slide": resourceid, "tag": tag_pk})
                 
+                conn.execute(Slide_Tag_Table.insert(), slide_tags)
+            except Exception as e:
+                print(e)
+                err_flag.set()
         try:
             tmp_dir = tempfile.TemporaryDirectory()
             tmp_path = tmp_dir.name +'/'
@@ -155,7 +168,7 @@ class Slide(Resource):
             f.save(tmp_path+filename)
 
             threads = []
-            for func in [thread_one, thread_two]:
+            for func in [thread_one, thread_two, thread_three]:
                 thread = Thread(target=func)
                 threads.append(thread)
                 thread.start()

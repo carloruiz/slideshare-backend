@@ -46,7 +46,8 @@ def UserMetaSchema(p, new_pk):
     
     return resp, err
 
-def InstitutionSchema(institution_str):
+def InstitutionSchema(institution):
+    institution_str = institution['value']
     try:
         name, state = institution_str.split(',') 
         resp, err = {
@@ -55,7 +56,7 @@ def InstitutionSchema(institution_str):
         }, 0
     except (ValueError, TypeError) as e:
         resp, err = "affiliations not formatted correctly." + \
-                    "Array(['name,state',]). No space between name, state", 1
+                    "Array([{'value': 'name,state', 'id': int}]). No space between name, state", 1
     return resp, err 
 
 class User(Resource):
@@ -82,7 +83,7 @@ class User(Resource):
                 if err:
                     trans.rollback()
                     return {"message": inst}, 400
-                inst_pk = get_or_create(db_engine, inst, IT, 
+                inst_pk = get_or_create(conn, inst, IT, 
                     (IT.c.name == inst['name']) &
                     (IT.c.state == inst['state']))
                 conn.execute(Affiliation_Table.insert(), user=user_pk, institution=inst_pk)

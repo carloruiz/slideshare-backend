@@ -3,18 +3,18 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 
 
-def get_or_create(db_engine, obj, table, condition):
+def get_or_create(conn, obj, table, condition):
     try:
         s = select([table]).where(condition)
-        r = db_engine.execute(s).first()
+        r = conn.execute(s).first()
         if r:
             pk = r.id
         else:
-            pk = db_engine.execute(table.insert(), **obj).inserted_primary_key[0]
+            pk = conn.execute(table.insert(), **obj).inserted_primary_key[0]
     except SQLAlchemyError as e:
         # TODO log error
         if 'unique constraint' in message: # could cause inf loop
-           pk = get_or_create(db_engine, obj, table, condition)
+           pk = get_or_create(conn, obj, table, condition)
     return pk
 
 def execute_query(conn, query, params, transform=None, unique=False):
@@ -45,7 +45,7 @@ def execute_query(conn, query, params, transform=None, unique=False):
     try:
         for row in conn.execute(query, params):
             row = dict(row)
-            if not checked and not datetime_columns:
+            if not checked:
                 datetime_columns = [key for key in row.keys() if type(row[key]) == datetime]
                 checked = 1
             for col in datetime_columns:
