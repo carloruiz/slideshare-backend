@@ -25,6 +25,7 @@ import tempfile
 import os
 
 
+
 class Upload(Resource):
     def post(self):
         print(request.get_json())
@@ -107,7 +108,7 @@ class Slide(Resource):
                 os.rename(thumb_dir+'/'+f, thumb_dir+'/'+'0'*(7-len(f[1:]))+f[1:])
             
             
-            aws_thumb_uri = aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid)
+            aws_thumb_uri = aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid, ext='/')
             args = 'aws s3 cp --recursive --quiet {} {}'.\
                 format(thumb_dir, aws_thumb_uri)
             flag = run_subprocess(args.split(), userid, timeout=20)
@@ -116,9 +117,9 @@ class Slide(Resource):
             if flag: err_flag.set()
 
 
-
         def thread_two():
             try:
+                aws_ppt_uri = aws_s3_uri(os.environ['S3_PPT_BUCKET'], userid, resourceid, ext='.pptx' )
                 s3.upload_file(tmp_path+filename, 
                     os.environ['S3_PPT_BUCKET'], '{}/{}.pptx'.format(userid, resourceid))
                 aws_flag.set()
@@ -186,7 +187,7 @@ class Slide(Resource):
             raise e
             return {}, 500, {"Access-Control-Allow-Origin": '*'}
 
-    
+        # TODO test cleaning up aws    
     
 class Slide_id(Resource):
     def get(self, id):
