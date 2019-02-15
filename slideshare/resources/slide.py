@@ -66,8 +66,8 @@ def SlideSchema(p, resourceid):
             "description": p['description'],
             "created_on": datetime.now(timezone.utc),
             "last_mod": datetime.now(timezone.utc),
-            "url": aws_s3_url(os.environ['S3_PPT_BUCKET'], p['userid'], resourceid),
-            "thumbnail": aws_s3_url(os.environ['S3_THUMB_BUCKET'], p['userid'], resourceid),
+            "url": aws_s3_url(os.environ['S3_PPT_BUCKET'], p['userid'], resourceid, ext='.pptx'),
+            "thumbnail": aws_s3_url(os.environ['S3_THUMB_BUCKET'], p['userid'], resourceid, ext='/'),
             "size": strfmt_bytes(int(p['size'])),
         }, 0
     except KeyError as e:
@@ -108,9 +108,8 @@ class Slide(Resource):
                 os.rename(thumb_dir+'/'+f, thumb_dir+'/'+'0'*(7-len(f[1:]))+f[1:])
             
             
-            aws_thumb_uri = aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid, ext='/')
             args = 'aws s3 cp --recursive --quiet {} {}'.\
-                format(thumb_dir, aws_thumb_uri)
+                format(thumb_dir, aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid, ext='/'))
             flag = run_subprocess(args.split(), userid, timeout=20)
             aws_flag.set()
 
@@ -119,7 +118,6 @@ class Slide(Resource):
 
         def thread_two():
             try:
-                aws_ppt_uri = aws_s3_uri(os.environ['S3_PPT_BUCKET'], userid, resourceid, ext='.pptx' )
                 s3.upload_file(tmp_path+filename, 
                     os.environ['S3_PPT_BUCKET'], '{}/{}.pptx'.format(userid, resourceid))
                 aws_flag.set()
@@ -180,11 +178,13 @@ class Slide(Resource):
             trans.rollback()
             if aws_flag.is_set():
                 print('cleaning up aws')
-                args = 'aws s3 rm --recursive --quiet %s && ' % aws_thumb_uri + \
-                       'aws s3 rm --quiet %s' % aws_ppt_uri
-                aws_flag = run_subprocess(args.split(), userid, timeout=20)
+                args = 'aws s3 rm --recursive --quiet %s' % \
+                    aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid, ext='/')
+                run_subprocess(args.split(), userid, timeout=20)
+                s3.delete_object(
+                        Bucket=os.environ['S3_PPT_BUCKET'], 
+                        Key='{}/{}.pptx'.format(userid, resourceid))
             #log error
-            raise e
             return {}, 500, {"Access-Control-Allow-Origin": '*'}
 
         # TODO test cleaning up aws    
