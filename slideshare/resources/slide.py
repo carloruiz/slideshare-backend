@@ -20,6 +20,7 @@ import boto3
 from datetime import datetime, timezone
 from threading import Thread, Event as ThreadEvent
 import subprocess as sp
+import json
 import sys
 import tempfile
 import os
@@ -129,8 +130,9 @@ class Slide(Resource):
             try:
                 TT = Tag_Table
                 slide_tags = []
-                for tag_obj in new_slide_meta['tags']:
-                    tag = {"tag": tab_obj['value'].lower()}
+                for tag_obj in tag_list:
+                    print(tag_obj)
+                    tag = {"tag": tag_obj['value'].lower()}
                     tag_pk = get_or_create(conn, tag, TT, (TT.c.tag == tag['tag']))
                     slide_tags.append({"slide": resourceid, "tag": tag_pk})
                 
@@ -143,6 +145,7 @@ class Slide(Resource):
             tmp_path = tmp_dir.name +'/'
             s3 = boto3.client('s3')
             aws_ppt_uri, aws_thumb_uri = None, None
+            tag_list = json.loads(request.form['tags'])
             err_flag, aws_flag = ThreadEvent(), ThreadEvent()
             
             # generate resource id
@@ -198,6 +201,7 @@ class Slide(Resource):
                         Bucket=os.environ['S3_PPT_BUCKET'], 
                         Key='{}/{}.pptx'.format(userid, resourceid))
             #log error
+            raise e
             return {}, 500, {"Access-Control-Allow-Origin": '*'}
 
         # TODO test cleaning up aws    
