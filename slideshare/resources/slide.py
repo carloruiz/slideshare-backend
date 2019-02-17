@@ -201,12 +201,10 @@ class Slide(Resource):
                         Bucket=os.environ['S3_PPT_BUCKET'], 
                         Key='{}/{}.pptx'.format(userid, resourceid))
             #log error
-            if e == IntegrityError:
+            if type(e) == IntegrityError:
                 return 400, {"field": "title", "error": "You already have a presentation with the same name"}
             raise e
             
-
-        # TODO test cleaning up aws    
     
 class Slide_id(Resource):
     def get(self, id):
