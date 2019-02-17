@@ -44,6 +44,7 @@ slide = Table('slide', metadata,
     Column('created_on', DateTime, default=datetime.now(timezone.utc)),
     Column('last_mod', DateTime, default=datetime.now(timezone.utc)),
     Column('thumbnail', String, unique=True, nullable=False),
+    UniqueConstraint('userid', 'title', name='unique_userid_title'),
     extend_existing=True
 )
 

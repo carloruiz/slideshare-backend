@@ -132,7 +132,7 @@ class Slide(Resource):
                 slide_tags = []
                 for tag_obj in tag_list:
                     print(tag_obj)
-                    tag = {"tag": tag_obj['value'].lower()}
+                    tag = {"tag": tag_obj['tag'].lower()}
                     tag_pk = get_or_create(conn, tag, TT, (TT.c.tag == tag['tag']))
                     slide_tags.append({"slide": resourceid, "tag": tag_pk})
                 
@@ -201,8 +201,10 @@ class Slide(Resource):
                         Bucket=os.environ['S3_PPT_BUCKET'], 
                         Key='{}/{}.pptx'.format(userid, resourceid))
             #log error
+            if e == IntegrityError:
+                return 400, {"field": "title", "error": "You already have a presentation with the same name"}
             raise e
-            return {}, 500, {"Access-Control-Allow-Origin": '*'}
+            
 
         # TODO test cleaning up aws    
     

@@ -6,6 +6,11 @@ from flask_restful import Resource, Api
 app = Flask(__name__)
 api = Api(app)
 
+@app.after_request
+def add_cors_heaer(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
 if __name__ == '__main__':
     app.run(debug=True)
 
