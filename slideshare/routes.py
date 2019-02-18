@@ -7,6 +7,7 @@ from slideshare.resources.home import Home
 from slideshare.resources.user import User, User_id, User_institution
 from slideshare.resources.slide import Slide, Slide_id, Slide_tag, Slide_user, Slide_institution, Upload
 from slideshare.resources.tag import Tag
+from slideshare.resources.institution import Institution
 
 api.add_resource(Upload, '/upload')
 
@@ -23,4 +24,5 @@ api.add_resource(Slide_tag, '/slide/tag/<string:id>')
 api.add_resource(Slide_institution, '/slide/institution/<string:id>')
 
 api.add_resource(Tag, '/tag')
+api.add_resource(Institution, '/institution')
 
