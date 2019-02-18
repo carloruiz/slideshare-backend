@@ -202,7 +202,12 @@ class Slide(Resource):
                         Key='{}/{}.pptx'.format(userid, resourceid))
             #log error
             if type(e) == IntegrityError:
-                return 400, {"field": "title", "error": "You already have a presentation with the same name"}
+                print('duplicate title error')
+                return {
+                        "field": "title", 
+                        "error": "You already have a presentation with the same name"
+                    }, 400
+            print('raising some server exception')
             raise e
             
     
