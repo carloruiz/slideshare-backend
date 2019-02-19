@@ -13,6 +13,8 @@ from sqlalchemy.sql import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from marshmallow import Schema, fields
 from datetime import datetime, timezone
+import json
+
 
 def affiliations_to_dict(row):
     res = []
@@ -47,7 +49,7 @@ def UserMetaSchema(p, new_pk):
     return resp, err
 
 def InstitutionSchema(institution):
-    institution_str = institution['value']
+    institution_str = institution['label']
     try:
         name, state = institution_str.split(',') 
         resp, err = {
@@ -56,14 +58,14 @@ def InstitutionSchema(institution):
         }, 0
     except (ValueError, TypeError) as e:
         resp, err = "affiliations not formatted correctly." + \
-                    "Array([{'value': 'name,state', 'id': int}]). No space between name, state", 1
+                    "Array([{'label': 'name,state', 'id': int}]). No space between name, state", 1
     return resp, err 
 
 class User(Resource):
     def post(self):
         conn = db_engine.connect()
         with conn.begin() as trans:
-            payload = request.get_json()
+            payload = request.form
             new_user, err = UserSchema(payload)
             if err:
                 return {"message": new_user}, 400
@@ -71,14 +73,21 @@ class User(Resource):
                 user_pk = conn.execute(User_Table.insert(), **new_user).\
                     inserted_primary_key[0]
             except IntegrityError as e:
-                return {"message": "username or email is already taken"}, 400
+                print(str(e))
+                print(e.args)
+                if 'user_username_key' in str(e):
+                    return {"error": "username"}, 400
+                elif 'user_email_key' in str(e):
+                    return {"error": "email"}, 400
+                else:
+                    return {"error": "db integrity error. Unkown cause"}, 500
             
             new_user_meta, err = UserMetaSchema(payload, user_pk)
             res = conn.execute(User_Meta_Table.insert(), **new_user_meta)
 
             IT = Institution_Table
             # TODO upload all institutions in one statement. same for affs
-            for affiliation in payload['affiliations']:
+            for affiliation in json.loads(payload['affiliations']):
                 inst, err = InstitutionSchema(affiliation)
                 if err:
                     trans.rollback()
