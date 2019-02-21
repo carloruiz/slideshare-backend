@@ -9,13 +9,14 @@ api = Api(app)
 
 @app.before_request
 def log_request():
-    print(request.get_json())
+    print(request.form)
 
 
 @app.after_request
 def add_cors_heaer(response):
-    print(response)
     response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST, PUT, GET, OPTIONS'
+    print(response.headers)
     return response
 
 

@@ -97,7 +97,7 @@ class User(Resource):
                     (IT.c.state == inst['state']))
                 conn.execute(Affiliation_Table.insert(), user=user_pk, institution=inst_pk)
         
-        return {}
+        return {}, 204
 
 def UserUpdate(p):
     mutable_columns = ['username', 'email']
@@ -126,7 +126,7 @@ class User_id(Resource):
        
        
     def put(self, id):
-        payload = request.get_json()
+        payload = request.form
         user_update = UserUpdate(payload)
         user_meta_update = UserMetaUpdate(payload)
         try:
@@ -141,9 +141,14 @@ class User_id(Resource):
                     values(**user_meta_update)
                 db_engine.execute(stmt)
         except IntegrityError as e:
-            return {"message": "username or email already taken"}, 400
+            if 'user_username_key' in str(e):
+                return {"error": "username"}, 400
+            elif 'user_email_key' in str(e):
+                return {"error": "email"}, 400
+            else:
+                return {"error": "db integrity error. Unkown cause"}, 500
 
-        return {}        
+        return {}, 204        
 
 class User_institution(Resource):
     def get(self, id):
