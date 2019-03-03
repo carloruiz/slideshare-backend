@@ -3,4 +3,6 @@ __pycache__/
 *.swp
 *.swo
 venv/
-secret.sh
+secret.py
+slideshare/data/CSV_12132018-717.csv
+slideshare/data/institutions.txt

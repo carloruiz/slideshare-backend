@@ -1,5 +1,6 @@
 from flask import request
 from flask_restful import Resource
+from slideshare import app
 from slideshare.db import (
     db_engine, 
     db_metadata, 
@@ -65,8 +66,8 @@ def SlideSchema(p, resourceid):
             "description": p['description'],
             "created_on": datetime.now(timezone.utc),
             "last_mod": datetime.now(timezone.utc),
-            "url": aws_s3_url(os.environ['S3_PPT_BUCKET'], p['userid'], resourceid, ext='.pptx'),
-            "thumbnail": aws_s3_url(os.environ['S3_THUMB_BUCKET'], p['userid'], resourceid, ext='/'),
+            "url": aws_s3_url(app.config['S3_PPT_BUCKET'], p['userid'], resourceid, ext='.pptx'),
+            "thumbnail": aws_s3_url(app.config['S3_THUMB_BUCKET'], p['userid'], resourceid, ext='/'),
             "size": strfmt_bytes(int(p['size'])),
         }, 0
     except KeyError as e:
@@ -108,7 +109,7 @@ class Slide(Resource):
             
             
             args = 'aws s3 cp --recursive --quiet {} {}'.\
-                format(thumb_dir, aws_s3_uri(os.environ['S3_THUMB_BUCKET'], 
+                format(thumb_dir, aws_s3_uri(app.config['S3_THUMB_BUCKET'], 
                     userid, resourceid, ext='/'))
             flag = run_subprocess(args.split(), userid, timeout=20)
             aws_flag.set()
@@ -119,7 +120,7 @@ class Slide(Resource):
         def thread_two():
             try:
                 s3.upload_file(tmp_path+filename, 
-                    os.environ['S3_PPT_BUCKET'], '{}/{}.pptx'.format(userid, resourceid))
+                    app.config['S3_PPT_BUCKET'], '{}/{}.pptx'.format(userid, resourceid))
                 aws_flag.set()
             except Exception as e:
                 err_flag.set()
@@ -188,17 +189,17 @@ class Slide(Resource):
             # tags (code identical to affiliations in user.py)
             tmp_dir.cleanup()
             trans.commit()
-            return {}, 204, {"Access-Control-Allow-Origin": '*'}
+            return {}, 200, {"Access-Control-Allow-Origin": '*'}
         except Exception as e:
             tmp_dir.cleanup()
             trans.rollback()
             if aws_flag.is_set():
                 print('cleaning up aws')
                 args = 'aws s3 rm --recursive --quiet %s' % \
-                    aws_s3_uri(os.environ['S3_THUMB_BUCKET'], userid, resourceid, ext='/')
+                    aws_s3_uri(app.config['S3_THUMB_BUCKET'], userid, resourceid, ext='/')
                 run_subprocess(args.split(), userid, timeout=20)
                 s3.delete_object(
-                        Bucket=os.environ['S3_PPT_BUCKET'], 
+                        Bucket=app.config['S3_PPT_BUCKET'], 
                         Key='{}/{}.pptx'.format(userid, resourceid))
             #log error
             if type(e) == IntegrityError:

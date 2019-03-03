@@ -8,10 +8,13 @@ from slideshare.resources.user import User, User_id, User_institution
 from slideshare.resources.slide import Slide, Slide_id, Slide_tag, Slide_user, Slide_institution, Upload
 from slideshare.resources.tag import Tag
 from slideshare.resources.institution import Institution
+from slideshare.login import Login, Logout
 
 api.add_resource(Upload, '/upload')
 
 api.add_resource(Home, '/')
+api.add_resource(Login, '/login')
+api.add_resource(Logout, '/logout')
 
 api.add_resource(User, '/user')
 api.add_resource(User_id, '/user/<string:id>')

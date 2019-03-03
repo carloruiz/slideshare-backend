@@ -9,6 +9,7 @@ from slideshare.db import (
     Institution as Institution_Table
 )
 from slideshare.utils.db import execute_query, get_or_create
+from slideshare.utils.auth import hash_password, verify_password
 from sqlalchemy.sql import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from marshmallow import Schema, fields
@@ -29,7 +30,7 @@ def UserSchema(p):
         resp, err =  {
             "username": p['username'],
             "email": p['email'],
-            'password': p['password']
+            'password': hash_password(p['password'])
         }, 0
     except KeyError as e:
         resp, err = "'%s' key is required" % e.args[0], 1
@@ -97,7 +98,7 @@ class User(Resource):
                     (IT.c.state == inst['state']))
                 conn.execute(Affiliation_Table.insert(), user=user_pk, institution=inst_pk)
         
-        return {}, 204
+        return {}
 
 def UserUpdate(p):
     mutable_columns = ['username', 'email']
@@ -148,7 +149,7 @@ class User_id(Resource):
             else:
                 return {"error": "db integrity error. Unkown cause"}, 500
 
-        return {}, 204        
+        return {}        
 
 class User_institution(Resource):
     def get(self, id):

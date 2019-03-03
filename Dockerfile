@@ -25,4 +25,4 @@ VOLUME ["/tmp"]
 ARG DUMMY=master
 SHELL ["bin/bash", "-c", "git pull"]
 
-CMD ["gunicorn", "--bind=0.0.0.0:8000", "slideshare:app"]
+#CMD ["gunicorn", "--bind=0.0.0.0:8000", "slideshare:app"]
