@@ -55,8 +55,6 @@ def execute_query(conn, query, params, transform=None, unique=False):
                 res.append(transform(row))
             else:
                 res.append(row)       
-        if len(res) == 0:
-            code = 204
         else:
             if unique: res = res[0]
     except Exception as e:
