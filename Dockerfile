@@ -15,14 +15,13 @@ RUN git clone https://github.com/carloruiz/slideshare-backend.git \
 
 
 WORKDIR /slideshare-backend
-COPY secret.sh /slideshare-backend/
-SHELL ["bin/bash", "-c", "source config.sh"]
+COPY secret.py /slideshare-backend/
 
 EXPOSE 8000
 
 VOLUME ["/tmp"]
 
 ARG DUMMY=master
-SHELL ["bin/bash", "-c", "git pull"]
+RUN git pull
 
-#CMD ["gunicorn", "--bind=0.0.0.0:8000", "slideshare:app"]
+CMD ["gunicorn", "--bind=0.0.0.0:8000", "slideshare:app"]
