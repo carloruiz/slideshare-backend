@@ -1,18 +1,23 @@
-stack
 Frameworks/services/modules
-Flask (REST Framework)
+Flask REST
 Postgres
 sqlalchemy 
 alembic 
 
 
-To run
-source venv/bin/activate
-source config.sh
+
+RUN LOCALLY
+with Docker
+docker build -t slidegraph .
+docker run -t --env-file=secret.txt -p 8000:8000 slidegraph
+
+Without Docker
+source ./secret.py
 gunicorn [--reload] slideshare:app
 
 
 TODO
-- add "secure" option to auth cookie
+- add "secure" option to auth cookie (need ssl cert)
+- move aws credentials to directory
 - update affiliations
 - update password

@@ -9,13 +9,17 @@ RUN adduser --home=/opt/libreoffice --disabled-password --gecos "" --shell=/bin/
 
 
 RUN apt-get -y -q install python3-pip git awscli poppler-utils
+
+#name image up to here slideshare-base
+# FROM slideshare-base
 RUN git clone https://github.com/carloruiz/slideshare-backend.git \
 	&& cd slideshare-backend \
 	&& pip3 install -r requirements.txt 
 
 
 WORKDIR /slideshare-backend
-COPY secret.py /slideshare-backend/
+#COPY secret.py /slideshare-backend/
+#use env-file instead
 
 EXPOSE 8000
 
