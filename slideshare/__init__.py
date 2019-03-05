@@ -1,17 +1,19 @@
-#from .app import app
-
 from flask import Flask, request
 from flask_restful import Resource, Api
 from config import config
+import json
 
 app = Flask(__name__)
 app.config.update(config)
 api = Api(app)
 
+from . import routes
+from . import db
+
 
 @app.before_request
 def log_request():
-    print(request.form)
+    print(json.dumps(request.__dict__, default=lambda o: '<not serializable>', indent=2))
 
 
 @app.after_request
@@ -22,9 +24,6 @@ def add_cors_heaer(response):
     print(response)
     return response
 
-
 if __name__ == '__main__':
     app.run(debug=True)
 
-from . import routes
-from . import db
