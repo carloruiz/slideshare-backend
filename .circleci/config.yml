@@ -19,5 +19,5 @@ jobs:
             - ./venv
       - run:
           name: Run Tests
-          command: echo "TODO: implements tests"
+          command: echo "TODO implements tests"
       #- run: #deploy app to ec2
