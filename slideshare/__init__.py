@@ -1,15 +1,16 @@
 from flask import Flask, request
 from flask_restful import Resource, Api
 from config import config
+from .utils.gunicorn import make_aiohttp_app
 import json
 
 app = Flask(__name__)
 app.config.update(config)
 api = Api(app)
+aioapp = make_aiohttp_app(app)
 
 from . import routes
 from . import db
-
 
 @app.before_request
 def log_request():
@@ -24,6 +25,8 @@ def add_cors_heaer(response):
     print(response)
     return response
 
+
 if __name__ == '__main__':
+    print("running flask as main")
     app.run(debug=True)
 

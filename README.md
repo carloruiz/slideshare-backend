@@ -12,13 +12,13 @@ AWS_SECRET_ACCESS_KEY=[]
 AWS_ACCESS_KEY_ID=[]
 
 Updating base docker image (libreoffice-base) in DockerHub
-docker build --target libreoffice-base -t libreoffice-base .
+docker build --target base_image -t libreoffice-base .
 docker push csr2131/libreoffice-base
 
-RUN LOCALLY
-with Docker
-docker build -t slidegraph .
-docker run -t --env-file=secret.env -p 8000:8000 slidegraph
+RUN LOCALLY in dev mode
+With Docker
+docker build -t slidegraph:local .
+docker run -t -p 8000:8000 -v $PWD:/slideshare-backend-local --env-file=secret.env slidegraph:local
 
 Without Docker
 source ./secret.sh
