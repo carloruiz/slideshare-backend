@@ -13,8 +13,8 @@ RUN git clone https://github.com/carloruiz/slideshare-backend.git \
 	&& cd slideshare-backend \
 	&& pip3 install -r requirements.txt 
 
-EXPOSE 8000
-EXPOSE 4430
+EXPOSE 80
+EXPOSE 443
 VOLUME ["/tmp"]
 
 #for development, uncomment the next three lines, and comment out the last CMD
@@ -22,5 +22,7 @@ VOLUME ["/tmp"]
 #WORKDIR slideshare-backend-local
 #CMD ["gunicorn", "--bind=0.0.0.0:8000", "--reload", "slideshare:app"]
 
-CMD ["gunicorn", "--bind=0.0.0.0:80", "-w", "3", "-k", "aiohttp.worker.GunicornWebWorker", "slideshare:aioapp"]
+WORKDIR slideshare-backend
+#CMD ["gunicorn", "--bind=0.0.0.0:80", "-w", "3", "-k", "aiohttp.worker.GunicornWebWorker", "slideshare:aioapp"]
+ENTRYPOINT ["./runserver.sh"]
 
