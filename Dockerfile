@@ -1,11 +1,13 @@
 FROM csr2131/libreoffice-base
 
 RUN apt-get -y -q install python3-pip python3-venv git awscli poppler-utils
-ARG DUMMY=dummyvalue
+ARG DEPENDECYCACHE
 RUN git clone https://github.com/carloruiz/slideshare-backend.git \
 	&& cd slideshare-backend \
 	&& pip3 install -r requirements.txt 
 
+ARG CODECASH 
+RUN git pull
 EXPOSE 80
 EXPOSE 443
 VOLUME ["/tmp"]
