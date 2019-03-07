@@ -1,7 +1,7 @@
 FROM csr2131/libreoffice-base
 
 RUN apt-get -y -q install python3-pip python3-venv git awscli poppler-utils
-ARG DEPENDECYCACHE
+ARG DEPENDENCYCACHE
 RUN git clone https://github.com/carloruiz/slideshare-backend.git \
 	&& cd slideshare-backend \
 	&& pip3 install -r requirements.txt 
