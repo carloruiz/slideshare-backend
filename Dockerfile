@@ -6,12 +6,12 @@ RUN git clone https://github.com/carloruiz/slideshare-backend.git \
 	&& cd slideshare-backend \
 	&& pip3 install -r requirements.txt 
 
+WORKDIR slideshare-backend
 ARG CODECASH 
 RUN git pull
 EXPOSE 80
 EXPOSE 443
 VOLUME ["/tmp"]
-WORKDIR slideshare-backend
 
 #for development, uncomment the next three lines, and comment out the last one. 
 #RUN mkdir slideshare-backend-local
