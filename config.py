@@ -18,9 +18,11 @@ config = {
     'DB_URI_LOCAL'      :  'postgresql://carloruiz@localhost:5432/slideshare'
 }
 
+config['ORIGIN'] = config['PRODUCTION_ORIGIN'] if config['PRODUCTION'] else config['DEV_ORIGIN'] 
+print(config)
+
 config['DB_URI_PRODUCTION'] = 'postgresql://{}:{}@{}:5432/{}'.format(
                                     config["DB_USER"], os.environ['DB_PASSWORD'], 
                                     config["DB_HOST"], config["DB_NAME"])
-config['ORIGIN'] = config['PRODUCTION_ORIGIN'] if config['PRODUCTION'] else config['DEV_ORIGIN'] 
 config['DB_URI'] = config['DB_URI_PRODUCTION'] if config['PRODUCTION'] else config['DB_URI_LOCAL']
 
