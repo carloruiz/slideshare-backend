@@ -19,7 +19,7 @@ def log_request():
 
 @app.after_request
 def add_cors_heaer(response):
-    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response.headers['Access-Control-Allow-Origin'] = config['ORIGIN']
     response.headers['Access-Control-Allow-Methods'] = 'POST, PUT, GET, OPTIONS'
     response.headers['Access-Control-Allow-Credentials'] = "true"
     print(response)

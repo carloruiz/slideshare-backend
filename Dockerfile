@@ -18,6 +18,6 @@ VOLUME ["/tmp"]
 #WORKDIR slideshare-backend-local
 #CMD ["gunicorn", "--bind=0.0.0.0:8000", "--reload", "slideshare:app"]
 
-#CMD ["gunicorn", "--bind=0.0.0.0:80", "-w", "3", "-k", "aiohttp.worker.GunicornWebWorker", "slideshare:aioapp"]
-ENTRYPOINT ["./runserver.sh"]
+CMD ["gunicorn", "--bind=0.0.0.0:80", "-w", "3", "-k", "aiohttp.worker.GunicornWebWorker", "slideshare:aioapp"]
+#ENTRYPOINT ["./runserver.sh"]
 
