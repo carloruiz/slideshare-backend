@@ -7,7 +7,7 @@ config = {
     'SECRET_ENV'        : os.environ['SECRET_KEY'],
     
     'DEV_ORIGIN'        : 'http://localhost:3000',
-    'PRODUCTION_ORIGIN' : 'http://slidegraph.net.s3-website-us-east-1.amazonaws.com/',
+    'PRODUCTION_ORIGIN' : 'http://slidegraph.net.s3-website-us-east-1.amazonaws.com',
     
     'S3_THUMB_BUCKET'   : 'slide-share-thumbs',
     'S3_PPT_BUCKET'     : 'slide-sharing-platform',
