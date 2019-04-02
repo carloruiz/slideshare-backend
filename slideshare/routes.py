@@ -16,7 +16,7 @@ api.add_resource(Home, '/')
 api.add_resource(Login, '/login')
 api.add_resource(Logout, '/logout')
 
-api.add_resource(User, '/user')
+api.add_resource(User, '/user', '/user/')
 api.add_resource(User_id, '/user/<string:id>')
 api.add_resource(User_institution, '/user/institution/<string:id>')
 

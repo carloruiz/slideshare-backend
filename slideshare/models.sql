@@ -25,13 +25,14 @@ CREATE TABLE slide (
     id INTEGER PRIMARY KEY REFERENCES slide_id(id) ON DELETE CASCADE,
     title citext,
     url VARCHAR UNIQUE,
+	thumbnail VARCHAR UNIQUE NOT NULL,
+	pdf VARCHAR UNIQUE NOT NULL,
     userid INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
     username VARCHAR(15) REFERENCES "user"(username) ON DELETE CASCADE ON UPDATE CASCADE,
     size VARCHAR(20),
     description VARCHAR,
     created_on timestamp without time zone,
     last_mod timestamp without time zone,
-    thumbnail VARCHAR UNIQUE NOT NULL
 );
 
 
@@ -41,7 +42,7 @@ CREATE TABLE tag (
 );
 
 CREATE TABLE slide_tag (
-    slide INTEGER,
+    slide INTEGER REFERENCES slide_id(id) ON DELETE CASCADE,
     tag INTEGER REFERENCES tag(id) ON DELETE CASCADE,
     CONSTRAINT slide_tag_pk PRIMARY KEY (slide, tag)
 );

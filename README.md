@@ -2,7 +2,6 @@ Frameworks/services/modules
 Flask REST
 Postgres
 sqlalchemy 
-alembic 
 
 
 secret file format
@@ -17,12 +16,15 @@ docker push csr2131/libreoffice-base
 
 RUN LOCALLY in dev mode
 With Docker
-docker build -t slidegraph:local .
-docker run -t -p 8000:8000 -v $PWD:/slideshare-backend-local --env-file=secret.env slidegraph:local
+docker build --build-arg CODECASH=`date +%s` -t csr2131/slidegraph .
+docker run -t -p 8000:80 -v $PWD:/slideshare-backend-local --env-file=secret.env csr2131/slidegraph
 
 Without Docker
 source ./secret.sh
 gunicorn [--reload] slideshare:app
+
+DEPLOY
+aws ecs update-service --cluster slidegraph-production --service slidegraph --force-new-deployment
 
 
 TODO

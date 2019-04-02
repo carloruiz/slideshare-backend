@@ -17,11 +17,11 @@ INNER JOIN (
 ORDER BY c.counts DESC;'''
 
 
-
-
 class Home(Resource):
     def order_by_tag(self, queryset):
         # TODO limit the number of tags in the query or use faster datastuct
+        if not queryset:
+            return 500
         columns = queryset[0].keys()
         result = defaultdict(list)
         ordering = []
@@ -35,6 +35,8 @@ class Home(Resource):
         result, code  = execute_query(db_engine, HOME_SQL, None)
         if code == 500:
             return {}, 500
+        if not result:
+            return {}, 200
         
         slides, ordering = self.order_by_tag(result)
         return {

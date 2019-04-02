@@ -12,12 +12,9 @@ RUN git pull
 EXPOSE 80
 EXPOSE 443
 VOLUME ["/tmp"]
-
 #for development, uncomment the next three lines, and comment out the last one. 
-#RUN mkdir slideshare-backend-local
-#WORKDIR slideshare-backend-local
-#CMD ["gunicorn", "--bind=0.0.0.0:8000", "--reload", "slideshare:app"]
+WORKDIR /slideshare-backend-local
 
-CMD ["gunicorn", "--bind=0.0.0.0:80", "-w", "3", "-k", "aiohttp.worker.GunicornWebWorker", "slideshare:aioapp"]
-#ENTRYPOINT ["./runserver.sh"]
+CMD ["gunicorn", "--bind=0.0.0.0:80", "--reload", "--timeout", "120", "slideshare:app"]
 
+#CMD ["gunicorn", "--bind=0.0.0.0:80", "-w", "3", "-k", "aiohttp.worker.GunicornWebWorker", "slideshare:aioapp"]

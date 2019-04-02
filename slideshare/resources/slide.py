@@ -92,40 +92,64 @@ class Slide(Resource):
         def thread_one():
             args = 'libreoffice --headless --convert-to pdf %s --outdir %s' % \
                 (tmp_path+filename,  tmp_path)
-            flag = run_subprocess(args.split(), userid, 
-                exception=sp.TimeoutExpired, timeout=20)
 
-            if flag: err_flag.set(); return
+            flag = run_subprocess(args.split(), userid, timeout=60,
+                exception=sp.TimeoutExpired)
+
+            if flag: 
+                print("Error occured with libreoffice conversion")
+                err_flag.set()
+                return
            
+            try:
+                s3.upload_file(tmp_path+filename, 
+                    app.config['S3_PDF_BUCKET'], 
+                    '{}/{}/{}'.format(userid, resourceid, filename),
+                    ExtraArgs={'ACL': 'public-read'}
+                )
+            except:
+                aws_flag.set()
+            
+
             
             args = "pdftoppm -jpeg %s %s" % (tmp_path+name+'.pdf', thumb_dir) 
-            flag = run_subprocess(args.split(), userid, timeout=20)
+            flag = run_subprocess(args.split(), userid)
            
-            if flag: err_flag.set(); return
+            if flag:
+                print("Error occured in pdf to image conversion")
+                err_flag.set()
+                return
             
             os.remove(tmp_path+name+'.pdf')
             for f in os.listdir(thumb_dir):
                 os.rename(thumb_dir+'/'+f, thumb_dir+'/'+'0'*(7-len(f[1:]))+f[1:])
             
             
-            args = 'aws s3 cp --recursive --quiet {} {}'.\
+            args = 'aws s3 cp --recursive --quiet --acl public-read {} {}'.\
                 format(thumb_dir, aws_s3_uri(app.config['S3_THUMB_BUCKET'], 
                     userid, resourceid, ext='/'))
-            flag = run_subprocess(args.split(), userid, timeout=20)
+            flag = run_subprocess(args.split(), userid, timeout=30)
             aws_flag.set()
 
-            if flag: err_flag.set()
+            if flag: 
+                print("Error with aws image upload")
+                err_flag.set()
 
 
         def thread_two():
             try:
                 s3.upload_file(tmp_path+filename, 
-                    app.config['S3_PPT_BUCKET'], '{}/{}.pptx'.format(userid, resourceid))
+                    app.config['S3_PPT_BUCKET'], 
+                    '{}/{}.pptx'.format(userid, resourceid),
+                    ExtraArgs={'ACL': 'public-read'}
+                )
                 aws_flag.set()
             except Exception as e:
+                print("Error with aws pptx upload")
                 err_flag.set()
                 raise e
-
+            print("done with thread 2")
+        
         # TODO upload all tags in one call
         def thread_three():
             try:
@@ -139,8 +163,11 @@ class Slide(Resource):
                 
                 conn.execute(Slide_Tag_Table.insert(), slide_tags)
             except Exception as e:
+                print("Error in slide_tag creation")
                 print(e)
                 err_flag.set()
+            print("done with thread 3")
+    
         try:
             tmp_dir = tempfile.TemporaryDirectory()
             tmp_path = tmp_dir.name +'/'
@@ -182,10 +209,11 @@ class Slide(Resource):
            
             if err_flag.is_set():
                 raise Exception
-            
+           
+            print("Getting to sql")
             # insert sql row to slide table
             res = conn.execute(Slide_Table.insert(), **new_slide_meta) 
-            
+            print("did meta")
             # tags (code identical to affiliations in user.py)
             tmp_dir.cleanup()
             trans.commit()

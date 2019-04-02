@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import os
+from config import config
 from sqlalchemy import (
     Table, MetaData, Column, 
     Integer, String, ForeignKey, 
@@ -43,6 +44,7 @@ slide = Table('slide', metadata,
     Column('description', String),
     Column('created_on', DateTime, default=datetime.now(timezone.utc)),
     Column('last_mod', DateTime, default=datetime.now(timezone.utc)),
+    Column('pdf', String, unique=True, nullable=False),
     Column('thumbnail', String, unique=True, nullable=False),
     UniqueConstraint('userid', 'title', name='unique_userid_title'),
     extend_existing=True
@@ -71,13 +73,13 @@ tag = Table('tag', metadata,
 )
 
 slide_tag = Table('slide_tag', metadata,
-    Column('slide', Integer, ForeignKey('slide.id', ondelete='CASCADE')),
+    Column('slide', Integer, ForeignKey('slide_id.id', ondelete='CASCADE')),
     Column('tag', Integer, ForeignKey('tag.id', ondelete='CASCADE')),
     PrimaryKeyConstraint('slide', 'tag', name='slide_tag_pk'),
     extend_existing=True
 )
 
 if __name__ == "__main__":
-    engine = create_engine(os.environ['DB_URI'])
+    engine = create_engine(config['DB_URI'])
     metadata.create_all(engine)
 
