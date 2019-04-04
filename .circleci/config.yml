@@ -48,5 +48,8 @@ jobs:
               echo "updating image"
               docker push csr2131/slidegraph
             fi
+            docker push csr2131/slidegraph
+            aws ecs update-service --cluster slidegraph-production --service slidegraph --force-new-deployment
+
 
       

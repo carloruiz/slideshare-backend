@@ -28,6 +28,7 @@ aws ecs update-service --cluster slidegraph-production --service slidegraph --fo
 
 
 TODO
+- move gunicorn options to config file
 - add "secure" option to auth cookie (need ssl cert)
 - move aws credentials to directory
 - update affiliations

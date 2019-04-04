@@ -20,7 +20,7 @@ api.add_resource(User, '/user', '/user/')
 api.add_resource(User_id, '/user/<string:id>')
 api.add_resource(User_institution, '/user/institution/<string:id>')
 
-api.add_resource(Slide, '/slide')
+api.add_resource(Slide, '/slide', '/slide/')
 api.add_resource(Slide_id, '/slide/<string:id>')
 api.add_resource(Slide_user, '/slide/user/<string:id>')
 api.add_resource(Slide_tag, '/slide/tag/<string:id>')

@@ -66,8 +66,8 @@ def SlideSchema(p, resourceid):
             "description": p['description'],
             "created_on": datetime.now(timezone.utc),
             "last_mod": datetime.now(timezone.utc),
-            "url": aws_s3_url(app.config['S3_PPT_BUCKET'], p['userid'], resourceid, ext='.pptx'),
-            "thumbnail": aws_s3_url(app.config['S3_THUMB_BUCKET'], p['userid'], resourceid, ext='/'),
+            "url": aws_s3_url(app.config['S3_PPT_BUCKET'], resourceid, ext='.pptx'),
+            "thumbnail": aws_s3_url(app.config['S3_THUMB_BUCKET'], resourceid, ext='/'),
             "size": strfmt_bytes(int(p['size'])),
         }, 0
     except KeyError as e:
@@ -102,14 +102,18 @@ class Slide(Resource):
                 return
            
             try:
-                s3.upload_file(tmp_path+filename, 
+                s3.upload_file(tmp_path+name+'.pdf', 
                     app.config['S3_PDF_BUCKET'], 
-                    '{}/{}/{}'.format(userid, resourceid, filename),
+                    '{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '+')),
                     ExtraArgs={'ACL': 'public-read'}
                 )
-            except:
+            except Exception:
                 aws_flag.set()
             
+            if aws_flag.is_set():
+                print("Error uploading pdf to AWS")
+                err_flag.set()
+                return
 
             
             args = "pdftoppm -jpeg %s %s" % (tmp_path+name+'.pdf', thumb_dir) 
@@ -120,14 +124,13 @@ class Slide(Resource):
                 err_flag.set()
                 return
             
-            os.remove(tmp_path+name+'.pdf')
             for f in os.listdir(thumb_dir):
                 os.rename(thumb_dir+'/'+f, thumb_dir+'/'+'0'*(7-len(f[1:]))+f[1:])
             
             
             args = 'aws s3 cp --recursive --quiet --acl public-read {} {}'.\
                 format(thumb_dir, aws_s3_uri(app.config['S3_THUMB_BUCKET'], 
-                    userid, resourceid, ext='/'))
+                    resourceid, ext='/'))
             flag = run_subprocess(args.split(), userid, timeout=30)
             aws_flag.set()
 
@@ -140,7 +143,7 @@ class Slide(Resource):
             try:
                 s3.upload_file(tmp_path+filename, 
                     app.config['S3_PPT_BUCKET'], 
-                    '{}/{}.pptx'.format(userid, resourceid),
+                    '{}/{}.pptx'.format(resourceid, new_slide_meta['title'].replace(' ', '+')),
                     ExtraArgs={'ACL': 'public-read'}
                 )
                 aws_flag.set()
