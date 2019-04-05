@@ -17,12 +17,16 @@ class Login(Resource):
             return {}, 400 
 
         token = generate_auth_token(user.id).decode('ascii')
-        resp = make_response()
+        #resp = make_response()
         # TODO add secure=True after adding ssl cert
-        resp.set_cookie("auth_token", token, httponly=True, path=None)
-        resp.set_cookie("userid", str(user.id), path=None)
-        resp.set_cookie("username", user.username, path=None)
-        return resp
+        #resp.set_cookie("auth_token", token, httponly=True, path=None, domain=app.config['ORIGIN'])
+        #resp.set_cookie("userid", str(user.id), path=None, domain=app.config['ORIGIN'])
+        #resp.set_cookie("username", user.username, path=None, domain=app.config['ORIGIN'])
+        return {
+            "auth_token": token,
+            "userid": str(user.id),
+            "username": user.username
+        }
 
 
 class Logout(Resource):

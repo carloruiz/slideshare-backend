@@ -26,3 +26,4 @@ config['DB_URI_PRODUCTION'] = 'postgresql://{}:{}@{}:5432/{}'.format(
                                     config["DB_HOST"], config["DB_NAME"])
 config['DB_URI'] = config['DB_URI_PRODUCTION'] if config['PRODUCTION'] else config['DB_URI_LOCAL']
 
+print(config)
