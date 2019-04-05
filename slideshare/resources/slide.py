@@ -106,7 +106,7 @@ class Slide(Resource):
             try:
                 s3.upload_file(tmp_path+name+'.pdf', 
                     app.config['S3_PDF_BUCKET'], 
-                    '{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '_'),
+                    '{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '_')),
                     ExtraArgs={'ACL': 'public-read'}
                 )
                 aws_flag.set()
