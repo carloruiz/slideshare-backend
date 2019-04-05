@@ -57,7 +57,7 @@ def strfmt_bytes(size):
 
 
 def SlideSchema(p, resourceid):
-    title = p['title'].replace(' ', '+')
+    title = p['title'].replace(' ', '_')
     try:
         resp, err =  {
             "id": resourceid,
@@ -104,12 +104,9 @@ class Slide(Resource):
                 return
            
             try:
-                print(tmp_path+name+'.pdf')
-                print(app.config['S3_PDF_BUCKET'])
-                print('{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '+')))
                 s3.upload_file(tmp_path+name+'.pdf', 
                     app.config['S3_PDF_BUCKET'], 
-                    '{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '+')),
+                    '{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '_'),
                     ExtraArgs={'ACL': 'public-read'}
                 )
                 aws_flag.set()
@@ -148,7 +145,7 @@ class Slide(Resource):
             try:
                 s3.upload_file(tmp_path+filename, 
                     app.config['S3_PPT_BUCKET'], 
-                    '{}/{}.pptx'.format(resourceid, new_slide_meta['title'].replace(' ', '+')),
+                    '{}/{}.pptx'.format(resourceid, new_slide_meta['title'].replace(' ', '_')),
                     ExtraArgs={'ACL': 'public-read'}
                 )
                 aws_flag.set()
@@ -235,10 +232,10 @@ class Slide(Resource):
                 run_subprocess(args.split(), userid, timeout=20)
                 s3.delete_object(
                     Bucket=app.config['S3_PPT_BUCKET'], 
-                    Key='{}/{}.pptx'.format(resourceid, new_slide_meta['title'].replace(' ', '+')))
+                    Key='{}/{}.pptx'.format(resourceid, new_slide_meta['title'].replace(' ', '_')))
                 s3.delete_object(
                     Bucket=app.config['S3_PDF_BUCKET'],
-                    Key='{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '+')))
+                    Key='{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '_')))
                 
             #log error
             if type(e) == IntegrityError:
