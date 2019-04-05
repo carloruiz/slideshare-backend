@@ -227,7 +227,7 @@ class Slide(Resource):
             if aws_flag.is_set():
                 print('cleaning up aws')
                 args = 'aws s3 rm --recursive --quiet %s' % \
-                    aws_s3_uri(app.config['S3_THUMB_BUCKET'], userid, resourceid, ext='/')
+                    aws_s3_uri(app.config['S3_THUMB_BUCKET'], resourceid, ext='/')
                 run_subprocess(args.split(), userid, timeout=20)
                 s3.delete_object(
                         Bucket=app.config['S3_PPT_BUCKET'], 
