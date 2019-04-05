@@ -57,6 +57,7 @@ def strfmt_bytes(size):
 
 
 def SlideSchema(p, resourceid):
+    title = p['title'].replace(' ', '+')
     try:
         resp, err =  {
             "id": resourceid,
@@ -66,8 +67,9 @@ def SlideSchema(p, resourceid):
             "description": p['description'],
             "created_on": datetime.now(timezone.utc),
             "last_mod": datetime.now(timezone.utc),
-            "url": aws_s3_url(app.config['S3_PPT_BUCKET'], resourceid, ext='.pptx'),
+            "url": aws_s3_url(app.config['S3_PPT_BUCKET'], resourceid, ext='/{}.pptx'.format(title)),
             "thumbnail": aws_s3_url(app.config['S3_THUMB_BUCKET'], resourceid, ext='/'),
+            "pdf": aws_s3_url(app.config['S3_PDF_BUCKET'], resourceid, ext='/{}.pdf'.format(title)),
             "size": strfmt_bytes(int(p['size'])),
         }, 0
     except KeyError as e:
@@ -102,17 +104,20 @@ class Slide(Resource):
                 return
            
             try:
+                print(tmp_path+name+'.pdf')
+                print(app.config['S3_PDF_BUCKET'])
+                print('{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '+')))
                 s3.upload_file(tmp_path+name+'.pdf', 
                     app.config['S3_PDF_BUCKET'], 
                     '{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '+')),
                     ExtraArgs={'ACL': 'public-read'}
                 )
-            except Exception:
                 aws_flag.set()
-            
-            if aws_flag.is_set():
-                print("Error uploading pdf to AWS")
+            except Exception:
                 err_flag.set()
+            
+            if err_flag.is_set():
+                print("Error uploading pdf to AWS")
                 return
 
             
@@ -226,12 +231,15 @@ class Slide(Resource):
             trans.rollback()
             if aws_flag.is_set():
                 print('cleaning up aws')
-                args = 'aws s3 rm --recursive --quiet %s' % \
-                    aws_s3_uri(app.config['S3_THUMB_BUCKET'], resourceid, ext='/')
+                args = 'aws s3 rm --recursive --quiet %s' % new_slide_meta['thumbnail']
                 run_subprocess(args.split(), userid, timeout=20)
                 s3.delete_object(
-                        Bucket=app.config['S3_PPT_BUCKET'], 
-                        Key='{}/{}.pptx'.format(userid, resourceid))
+                    Bucket=app.config['S3_PPT_BUCKET'], 
+                    Key='{}/{}.pptx'.format(resourceid, new_slide_meta['title'].replace(' ', '+')))
+                s3.delete_object(
+                    Bucket=app.config['S3_PDF_BUCKET'],
+                    Key='{}/{}.pdf'.format(resourceid, new_slide_meta['title'].replace(' ', '+')))
+                
             #log error
             if type(e) == IntegrityError:
                 print('duplicate title error')
