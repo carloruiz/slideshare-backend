@@ -1,4 +1,4 @@
-aiohttp==3.5.4
+aiohttp==3.7.4
 aiohttp-wsgi==0.8.2
 alembic==1.0.6
 aniso8601==4.1.0
